@@ -1,0 +1,135 @@
+<html>
+<head>
+<title>Stalker</title>
+<style>
+* {
+background-color: black;
+color: white;
+}
+table {
+	border: 1px outset grey;
+}
+td { 
+	border: thin inset grey;
+	margin: 1;
+}
+.nr {
+	text-align: right;
+}
+</style>
+<script>
+function readSetting(table, index, row = table.rows[index]) {
+  if (!row) return
+  const body = JSON.stringify({
+	path : basePath.value,
+	fileName : row.cells[0].innerText,
+	setting : row.cells[1].innerText
+  })
+  fetch('http://localhost:3000/readLtxSetting', { method: 'POST', body })
+    .then(response => response.text())
+    .then(txt => {
+	  addToCell(row.cells[2], txt)
+	  readSetting(table, index + 1)
+	})
+}
+function readSectionSetting(table, index, row = table.rows[index]) {
+  if (!row) return
+  const settings = Array.from(table.rows[0].cells).slice(1).map(cell => cell.innerText)
+  const body = JSON.stringify({
+	path : basePath.value,
+	fileName : table.getAttribute('file'),
+	texts : table.getAttribute('texts'),
+	section : row.cells[0].innerText,
+	setting : settings.join()
+  })
+  fetch('http://localhost:3000/readLtxSectionSetting', { method: 'POST', body })
+	.then(response => response.text())
+	.then(txt => {
+	  txt.split('\r\n').forEach((val, i) => addToCell(row.cells[1 + i], val))
+	  readSectionSetting(table, index + 1)
+	})
+}
+function addToCell(cell, txt) {
+  if (txt.indexOf(',') == -1) return cell.innerText = txt
+  cell.innerHTML = ''
+  const select = cell.appendChild(document.createElement('select'))
+  txt.split(',').forEach(val => addValues(select, val))
+  return txt
+}
+function addValues(select, val)  {
+  const option = select.appendChild(document.createElement('option'))
+  option.innerText = val
+}
+setTimeout(() => {
+  Array.from(document.querySelectorAll('table[name="setting"]'))
+   .forEach(table => readSetting(table, 1))
+  Array.from(document.querySelectorAll('table[name="section"]'))
+	.forEach(table => readSectionSetting(table, 1))
+})
+</script>
+</head>
+<body>
+<h1>Stalker</h1>
+<input type="text" id="basePath" value="d:/games/modded/gamedata">
+
+<table name="setting">
+<tr><th>Filename</th><th>Setting</th><th>Value</th></tr>
+<tr><td>config/system.ltx</td><td>max_weight</td><td class="nr"></td></tr>
+<tr><td>config/creatures/actor.ltx</td><td>max_item_mass</td><td class="nr"></td></tr>
+<tr><td>config/creatures/actor.ltx</td><td>max_walk_weight</td><td class="nr"></td></tr>
+</table>
+
+<table name="setting">
+<tr><th>Filename</th><th>Setting</th><th>Value</th></tr>
+<tr><td>config/creatures/actor.ltx</td><td>jump_speed</td><td></td></tr>
+</table>
+
+<table name="setting">
+<tr><th>Filename</th><th>Setting</th><th>Value</th></tr>
+<tr><td>config/system.ltx</td><td>max_belt</td><td></td></tr>
+</table>
+
+<table name="section" file="config/misc/task_manager.ltx" texts="config/text/eng/stable_task_manager.xml">
+<tr><th>Quest</th><th>reward_item</th><th>description</th></tr>
+<tr><td>petrenko_kill_stalker</td><td></td><td></td></tr>
+<tr><td>hunter_eliminate_lager</td><td></td><td></td></tr>
+<tr><td>zastava_commander_eliminate_lager</td><td></td><td></td></tr>
+<tr><td>ecolog_find_artefact_1</td><td></td><td></td></tr>
+<tr><td>ecolog_find_artefact_2</td><td></td><td></td></tr>
+<tr><td>ecolog_find_artefact_3</td><td></td><td></td></tr>
+<tr><td>ecolog_find_artefact_4</td><td></td><td></td></tr>
+<tr><td>ecolog_find_artefact_5</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_1</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_2</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_3</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_4</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_5</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_6</td><td></td><td></td></tr>
+<tr><td>freedom_eliminate_camp_7</td><td></td><td></td></tr>
+<tr><td>freedom_kill_stalker_4</td><td></td><td></td></tr>
+<tr><td>freedom_kill_stalker_5</td><td></td><td></td></tr>
+<tr><td>freedom_kill_stalker_6</td><td></td><td></td></tr>
+<tr><td>freedom_find_item_3</td><td></td><td></td></tr>
+<tr><td>freedom_monster_part_1</td><td></td><td></td></tr>
+<tr><td>freedom_defend_lager_1</td><td></td><td></td></tr>
+<tr><td>freedom_defend_lager_2</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_1</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_2</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_3</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_4</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_5</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_6</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_7</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_8</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_9</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_10</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_11</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_12</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_13</td><td></td><td></td></tr>
+<tr><td>dolg_eliminate_lager_14</td><td></td><td></td></tr>
+<tr><td>dolg_kill_stalker_1</td><td></td><td></td></tr>
+<tr><td>dolg_find_item_1</td><td></td><td></td></tr>
+</table>
+
+</body>
+</html>
