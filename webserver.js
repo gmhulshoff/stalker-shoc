@@ -11,6 +11,8 @@ http
 		const body = JSON.parse(json)
 		if (req.url.startsWith('/readLtxSetting')) 
 			return res.end(readLtxSetting(body))
+		if (req.url.startsWith('/readAllLtxSections')) 
+			return res.end(readAllLtxSections(body))
 		if (req.url.startsWith('/readLtxSectionSetting')) 
 			return res.end(readLtxSectionSetting(body))
 	})
@@ -41,14 +43,25 @@ function readLtxSetting(params, content = readFile(params)) {
   return content.match(new RegExp(src)).groups[params.setting]
 }
 
+function readAllLtxSections(params, content = readFile(params)) {
+  const lines = content.split('\r\n')
+  console.log(lines.length)
+  const sections = []
+  return lines
+    .filter(line => line.startsWith('[') && line.endsWith(']'))
+	.map(line => line.substring(1, line.length - 1))
+	.slice(1)
+	.join('\r\n')
+}
+
 function readLtxSectionSetting(params, content = readFile(params)) {
-  const sectionSrc = `.*\\[${params.section}\\](?<${params.section}>[\\s\\S]*)\\[`
+  const sectionSrc = `.*\\[${params.section}\\](?<${params.section}>[\\s\\S]*)(\\[|$)`
   const match = content.match(new RegExp(sectionSrc))
   const section = match.groups[params.section]
   const texts = fs.readFileSync(`${params.path}/${params.texts}`).toString()
   return params.setting.split(',').map(setting => {
     const val = section.match(new RegExp(`.*${setting}\\s*?=(\\s)(?<${setting}>.*?\\r\\n)\\s*?`)).groups[setting].trim()
-	if (['description','text'].includes(setting)) return readText(val, texts).split(',').join('').split('\n').join(' ')
+	if (['description','text'].includes(setting)) return readText(val, texts)?.split(',').join('').split('\n').join(' ')
 	return val
   }).join('\r\n')
 }
@@ -56,7 +69,7 @@ function readLtxSectionSetting(params, content = readFile(params)) {
 function readText(id, content) {
   const all = '[\\s\\S]*?'
   const src = `<string id="${id}">${all}<text>(?<${id}>${all})<\/text>${all}<\/string>`
-  return content.match(new RegExp(src)).groups[id]
+  return content.match(new RegExp(src))?.groups[id]
 }
 
 function readFile(params) {
