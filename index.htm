@@ -43,13 +43,15 @@ function readAllLtxSections(fileName = 'config/misc/task_manager.ltx') {
 	fileName
   })
   const sectionTable = document.querySelector('table[name="section"]')
+  const headerCells = sectionTable.rows[0].cells.length
+  console.log(headerCells)
   fetch(`${baseUrl.value}/readAllLtxSections`, { method: 'POST', body })
 	.then(response => response.text())
 	.then(sections => {
 	  sections
         .split('\r\n')
         .sort()
-        .forEach(key => insertSection(sectionTable, key))
+        .forEach(key => insertSection(sectionTable, key, headerCells))
 	})
 	.finally(() => {
       readSectionSetting(sectionTable, 1)
@@ -108,11 +110,11 @@ function insertSetting(table, setting) {
 	    valueCell.classList.add('nr')
     })
 }
-function insertSection(table, section) {
+function insertSection(table, section, headerCells) {
   const row = table.insertRow(-1)
   row.insertCell(-1).innerText = section
-  row.insertCell(-1)
-  row.insertCell(-1)
+  for (var i = 1; i < headerCells; i++)
+    row.insertCell(-1)
 }
 setTimeout(() => {
   readAllLtxSections()
@@ -138,7 +140,7 @@ setTimeout(() => {
 </table>
 
 <table name="section" file="config/misc/task_manager.ltx" texts="config/text/eng/stable_task_manager.xml">
-<tr><th>Quest</th><th>reward_item</th><th>description</th></tr>
+<tr><th>Quest</th><th>reward_item</th><th>description</th><th>reward_rank</th><th>reward_relation</th></tr>
 </table>
 
 </body>

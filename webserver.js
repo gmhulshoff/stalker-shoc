@@ -60,8 +60,10 @@ function readLtxSectionSetting(params, content = readFile(params)) {
   const section = match.groups[params.section]
   const texts = fs.readFileSync(`${params.path}/${params.texts}`).toString()
   return params.setting.split(',').map(setting => {
-    const val = section.match(new RegExp(`.*${setting}\\s*?=(\\s)(?<${setting}>.*?\\r\\n)\\s*?`)).groups[setting].trim()
-	if (['description','text'].includes(setting)) return readText(val, texts)?.split(',').join('').split('\n').join(' ')
+    const val = section.match(new RegExp(`.*${setting}\\s*?=(\\s)(?<${setting}>.*?\\r\\n)\\s*?`))
+	  ?.groups[setting].trim()
+	if (['description','text'].includes(setting)) 
+      return readText(val, texts)?.split(',').join('').split('\n').join(' ')
 	return val
   }).join('\r\n')
 }
