@@ -18,24 +18,40 @@ td {
 }
 </style>
 <script>
-const quests = {
+const settings = {
   system : {
     fullname: 'config/system.ltx',
-	settings: {
-	   max_weight: 80,
-	   max_belt: 80,
-	   max_ruck: 56,
-	   slots: 11 
+	section: {
+      inventory: {
+        take_dist: 2,
+        max_weight: 80,
+        max_belt: 80,
+        max_ruck: 56,
+        slots: 11 
+	  }
 	}
   },
   actor: {
 	fullname: 'config/creatures/actor.ltx',
-	settings: {
-	  max_item_mass: 80,
-      max_walk_weight: 80,
-	  jump_speed: 1
+	section: {
+      actor: {
+	    max_item_mass: 80,
+        max_walk_weight: 80,
+	    jump_speed: 1
+	  }
 	}
   }
+}
+function readJsonLtxSections(fileName = 'config/misc/task_manager.ltx') {
+  const body = JSON.stringify({
+	path : basePath.value,
+	fileName
+  })
+  fetch(`${baseUrl.value}/readJsonLtxSections`, { method: 'POST', body })
+	.then(response => response.json())
+	.then(sections => {
+	  console.log(sections)
+	})
 }
 function readAllLtxSections(fileName = 'config/misc/task_manager.ltx') {
   const body = JSON.stringify({
@@ -44,7 +60,6 @@ function readAllLtxSections(fileName = 'config/misc/task_manager.ltx') {
   })
   const sectionTable = document.querySelector('table[name="section"]')
   const headerCells = sectionTable.rows[0].cells.length
-  console.log(headerCells)
   fetch(`${baseUrl.value}/readAllLtxSections`, { method: 'POST', body })
 	.then(response => response.text())
 	.then(sections => {
@@ -62,12 +77,14 @@ function readSetting(table, index, row = table.rows[index]) {
   const body = JSON.stringify({
 	path : basePath.value,
 	fileName : row.cells[0].innerText,
-	setting : row.cells[1].innerText
+	section : row.cells[1].innerText,
+	setting : row.cells[2].innerText
   })
-  fetch(`${baseUrl.value}/readLtxSetting`, { method: 'POST', body })
+  fetch(`${baseUrl.value}/readLtxSectionSetting`, { method: 'POST', body })
     .then(response => response.text())
     .then(txt => {
-	  addToCell(row.cells[2], txt)
+	  addToCell(row.cells[3], txt)
+	  row.cells[3].setAttribute('data-value', txt);
 	  readSetting(table, index + 1)
 	})
 }
@@ -88,6 +105,11 @@ function readSectionSetting(table, index, row = table.rows[index]) {
 	  readSectionSetting(table, index + 1)
 	})
 }
+function updateSectionSetting(body) {
+  fetch(`${baseUrl.value}/updateLtxSectionSetting`, { method: 'POST', body: JSON.stringify(body) })
+	.then(response => response.text())
+	.then(txt => console.log({updateSectionSetting: txt}))
+}
 function addToCell(cell, txt) {
   if (txt.indexOf(',') == -1) return cell.innerText = txt
   cell.innerHTML = ''
@@ -100,14 +122,27 @@ function addValues(select, val)  {
   option.innerText = val
 }
 function insertSetting(table, setting) {
-  Object.keys(setting.settings)
-    .forEach(key => {
-	  const row = table.insertRow(-1)
-      row.insertCell().innerText = setting.fullname
-      row.insertCell(-1).innerText = key
-	  const valueCell = row.insertCell(-1)
-	  if (typeof(setting.settings[key]) == 'number')
-	    valueCell.classList.add('nr')
+  Object.keys(setting.section)
+    .forEach(sectionKey => {
+	  Object.keys(setting.section[sectionKey])
+	    .forEach(settingKey => {
+          const row = table.insertRow(-1)
+          row.insertCell().innerText = setting.fullname
+          row.insertCell(-1).innerText = sectionKey
+          row.insertCell(-1).innerText = settingKey
+	      const valueCell = row.insertCell(-1)
+	      valueCell.setAttribute('contenteditable', true)
+		  valueCell.onblur = e => updateSectionSetting({
+              path : basePath.value,
+              fileName : setting.fullname,
+              section : sectionKey,
+              setting : settingKey,
+			  newValue: valueCell.innerText,
+			  oldValue: valueCell.getAttribute('data-value')
+            })
+	      if (typeof(setting.section[sectionKey][settingKey]) == 'number')
+            valueCell.classList.add('nr')
+		})
     })
 }
 function insertSection(table, section, headerCells) {
@@ -118,25 +153,24 @@ function insertSection(table, section, headerCells) {
 }
 setTimeout(() => {
   readAllLtxSections()
+  readJsonLtxSections()
   baseUrl.value = document.URL.split('/').slice(0, -1).join('/')
   const settingsTable = document.querySelector('table[name="setting"]')
-  Object.keys(quests).forEach(key => insertSetting(settingsTable, quests[key]))
-  
+  Object.keys(settings).forEach(key => insertSetting(settingsTable, settings[key]))
   readSetting(settingsTable, 1)
-  
 })
 </script>
 </head>
 <body>
 <h1>Stalker</h1>
 <div>
-<label>Basepath: <input type="text" id="basePath" value="d:/games/modded/gamedata"></label>
+<label>Basepath: <input type="text" id="basePath" value="d:/games/node/stalker-shoc/gamedata"></label>
 <br/>
 <label>BaseUrl: <input type="text" id="baseUrl" value=""></label>
 </div>
 
 <table name="setting">
-<tr><th>Filename</th><th>Setting</th><th>Value</th></tr>
+<tr><th>Filename</th><th>Section</th><th>Setting</th><th>Value</th></tr>
 </table>
 
 <table name="section" file="config/misc/task_manager.ltx" texts="config/text/eng/stable_task_manager.xml">
