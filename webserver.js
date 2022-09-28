@@ -9,6 +9,8 @@ http
 	const params = url.parse(req.url, true).query
 	req.on('data', json => {
 		const body = JSON.parse(json)
+		if (req.url.startsWith('/readXmlTexts')) 
+			return res.end(JSON.stringify(readXml(readFile(body))))
 		if (req.url.startsWith('/readAllLtxSections')) 
 			return res.end(readAllLtxSections(body))
 		if (req.url.startsWith('/readJsonLtxSections')) 
@@ -57,18 +59,19 @@ function readAllLtxSections(params, content = readFile(params)) {
 }
 
 function readJsonLtxSections(params, content = readFile(params)) {
-  const lines = content.split('\r\n')
-  const sections = lines.slice(1).reduce((a,c) => {
-    if (c.startsWith('[') && c.endsWith(']')) {
-      a.current = c.substring(1, c.length - 1)
-	  a[a.current] = {}
-    }
-    const kvp = c.split('=').map(kvp => kvp.trim())
-	if (kvp.length == 2) a[a.current][kvp[0]] = kvp[1]
-	return a
-  }, {})
-  delete sections.current
-  return JSON.stringify(sections)
+  return JSON.stringify({...content.split('\r\n')
+    .slice(1)
+    .reduce((a,c) => getSetting(a, c), {}), current: undefined})
+}
+
+function getSetting(a, c) {
+  if (c.startsWith('[')) {
+    a.current = c.substring(1, c.indexOf(']'))
+    a[a.current] = {}
+  }
+  const kvp = c.split('=').map(kvp => kvp.trim())
+  if (kvp.length == 2 && a[a.current]) a[a.current][kvp[0]] = kvp[1]
+  return a
 }
 
 function readLtxSectionSetting(params, content = readFile(params)) {
@@ -83,6 +86,34 @@ function readLtxSectionSetting(params, content = readFile(params)) {
       return readText(val, texts)?.split(',').join('').split('\n').join(' ')
 	return val
   }).join('\r\n')
+}
+
+function readXml(source = xmlLines, obj = {}, path = '', parts = path.split('.').filter(p => p)) {
+  const lines = source
+    .split('\n')
+	.filter(ln => !ln.startsWith('<' + '?xml'))
+	.map(ln => ln.trim())
+  const reversed = lines.reverse()
+  const line = reversed.pop()
+  if (line == '') return obj
+  const startTag = line.match(/<(?<tag>[^ >]*)(?<attributes>.*?)>/)
+  const endTag = line.match(/<\/(?<tag>[^>]*)>/)?.groups.tag
+  const singleLineTag = line.match(/<(?<tag>[^>]*)>(?<innerText>.*?)<\/(?<endTag>[^>]*)>/)
+  const getProp = (obj, path, parts = path.split('.')) => (path && obj[parts[0]]) ? getProp(obj[parts[0]], parts.slice(1).join('.')) : obj
+  if (singleLineTag) {
+    const prop = getProp(obj, path)
+	prop[singleLineTag.groups.tag] = singleLineTag.groups.innerText
+    return readXml(reversed.reverse().join('\n'), obj, path)
+  }
+  if (endTag)
+    return readXml(reversed.reverse().join('\n'), obj, path.split('.').slice(0, -1).join('.'))
+  if (startTag) {
+    const {attributes, tag} = startTag.groups
+    const tagName = !attributes ? tag : attributes.split('=')[1].replace(/"/g, '')
+    const prop = getProp(obj, path)
+	prop[tagName] = {}
+    return readXml(reversed.reverse().join('\n'), obj, `${path}.${tagName}`.replace(/^\.+/, ''))
+  }
 }
 
 function updateLtxSectionSetting(params, content = readFile(params)) {

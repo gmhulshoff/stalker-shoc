@@ -34,9 +34,11 @@ const settings = {
   actor: {
 	fullname: 'config/creatures/actor.ltx',
 	section: {
+	  actor_condition: {
+        max_walk_weight: 80
+	  },
       actor: {
 	    max_item_mass: 80,
-        max_walk_weight: 80,
 	    jump_speed: 1
 	  }
 	}
@@ -47,90 +49,48 @@ function readJsonLtxSections(fileName = 'config/misc/task_manager.ltx') {
 	path : basePath.value,
 	fileName
   })
-  fetch(`${baseUrl.value}/readJsonLtxSections`, { method: 'POST', body })
+  return fetch(`${baseUrl.value}/readJsonLtxSections`, { method: 'POST', body })
 	.then(response => response.json())
-	.then(sections => {
-	  console.log(sections)
-	})
 }
-function readAllLtxSections(fileName = 'config/misc/task_manager.ltx') {
+function readXmlTexts(fileName) {
   const body = JSON.stringify({
 	path : basePath.value,
 	fileName
   })
-  const sectionTable = document.querySelector('table[name="section"]')
-  const headerCells = sectionTable.rows[0].cells.length
-  fetch(`${baseUrl.value}/readAllLtxSections`, { method: 'POST', body })
-	.then(response => response.text())
-	.then(sections => {
-	  sections
-        .split('\r\n')
-        .sort()
-        .forEach(key => insertSection(sectionTable, key, headerCells))
-	})
-	.finally(() => {
-      readSectionSetting(sectionTable, 1)
-	})
-}
-function readSetting(table, index, row = table.rows[index]) {
-  if (!row) return
-  const body = JSON.stringify({
-	path : basePath.value,
-	fileName : row.cells[0].innerText,
-	section : row.cells[1].innerText,
-	setting : row.cells[2].innerText
-  })
-  fetch(`${baseUrl.value}/readLtxSectionSetting`, { method: 'POST', body })
-    .then(response => response.text())
-    .then(txt => {
-	  addToCell(row.cells[3], txt)
-	  row.cells[3].setAttribute('data-value', txt);
-	  readSetting(table, index + 1)
-	})
-}
-function readSectionSetting(table, index, row = table.rows[index]) {
-  if (!row) return
-  const settings = Array.from(table.rows[0].cells).slice(1).map(cell => cell.innerText)
-  const body = JSON.stringify({
-	path : basePath.value,
-	fileName : table.getAttribute('file'),
-	texts : table.getAttribute('texts'),
-	section : row.cells[0].innerText,
-	setting : settings.join()
-  })
-  fetch(`${baseUrl.value}/readLtxSectionSetting`, { method: 'POST', body })
-	.then(response => response.text())
-	.then(txt => {
-	  txt.split('\r\n').forEach((val, i) => addToCell(row.cells[1 + i], val))
-	  readSectionSetting(table, index + 1)
-	})
+  return fetch(`${baseUrl.value}/readXmlTexts`, { method: 'POST', body })
+	.then(response => response.json())
 }
 function updateSectionSetting(body) {
   fetch(`${baseUrl.value}/updateLtxSectionSetting`, { method: 'POST', body: JSON.stringify(body) })
 	.then(response => response.text())
 	.then(txt => console.log({updateSectionSetting: txt}))
 }
-function addToCell(cell, txt) {
-  if (txt.indexOf(',') == -1) return cell.innerText = txt
-  cell.innerHTML = ''
-  const select = cell.appendChild(document.createElement('select'))
-  txt.split(',').forEach(val => addValues(select, val))
-  return txt
+function addToCell(cell, txt, translation) {
+  if (txt.indexOf(',') == -1) return insertDetails(cell, txt, translation)
+  const parts = txt.split(',')
+  if (parts.length == 2) return cell.innerText = txt
+  return insertDetails(cell, parts[0], txt)
+  //cell.innerHTML = ''
+  //const select = cell.appendChild(document.createElement('select'))
+  //txt.split(',').forEach(val => addValues(select, val))
+  //return txt
 }
 function addValues(select, val)  {
   const option = select.appendChild(document.createElement('option'))
   option.innerText = val
 }
-function insertSetting(table, setting) {
+function insertSetting(table, setting, section) {
   Object.keys(setting.section)
     .forEach(sectionKey => {
 	  Object.keys(setting.section[sectionKey])
 	    .forEach(settingKey => {
+		  const sx = section[sectionKey]
           const row = table.insertRow(-1)
           row.insertCell().innerText = setting.fullname
           row.insertCell(-1).innerText = sectionKey
           row.insertCell(-1).innerText = settingKey
 	      const valueCell = row.insertCell(-1)
+		  valueCell.innerText = sx[settingKey]
 	      valueCell.setAttribute('contenteditable', true)
 		  valueCell.onblur = e => updateSectionSetting({
               path : basePath.value,
@@ -140,24 +100,62 @@ function insertSetting(table, setting) {
 			  newValue: valueCell.innerText,
 			  oldValue: valueCell.getAttribute('data-value')
             })
-	      if (typeof(setting.section[sectionKey][settingKey]) == 'number')
+	      if (typeof(sx[settingKey]) == 'number')
             valueCell.classList.add('nr')
 		})
     })
 }
-function insertSection(table, section, headerCells) {
+function insertSection(table, section, translation, headerCells) {
   const row = table.insertRow(-1)
-  row.insertCell(-1).innerText = section
+  const cell = row.insertCell(-1)
+  insertDetails(cell, section, translation)
   for (var i = 1; i < headerCells; i++)
     row.insertCell(-1)
 }
+
+function insertDetails(container, title, content) {
+  if (!content) return container.innerText = title
+  const details = container.appendChild(document.createElement('details'))
+  details.appendChild(document.createElement('summary')).innerText = title
+  details.appendChild(document.createElement('p')).innerText = content
+}
+
 setTimeout(() => {
-  readAllLtxSections()
-  readJsonLtxSections()
+  readXmlTexts('config/text/eng/string_table_enc_weapons.xml')
+    .then(weaponTexts => readJsonLtxSections('config/misc/unique_items.ltx')
+      .then(uniqueItemsSections => readJsonLtxSections('config/misc/artefacts.ltx')
+        .then(artefactSections => readXmlTexts('config/text/eng/string_table_enc_zone.xml')
+          .then(zoneTexts => readXmlTexts('config/text/eng/stable_task_manager.xml')
+	        .then(texts => readJsonLtxSections('config/misc/task_manager.ltx')
+	          .then(sections => {
+                const sectionTable = document.querySelector('table[name="section"]')
+	            const headerCells = sectionTable.rows[0].cells.length
+	            const settingProps = Array.from(sectionTable.rows[0].cells).slice(1).map(cell => cell.innerText)
+	            const getTrans = val => texts.string_table[val]?.text || 
+	      	        zoneTexts.string_table[artefactSections[val]?.inv_name]?.text ||
+					weaponTexts.string_table[uniqueItemsSections[val]?.inv_name]?.text
+	            const propTxt = (s, k, p) => getTrans(s[k][p])
+	            Object.keys(sections)
+	              .filter(key => sections[key].type != 'storyline')
+                  .sort()
+                  .forEach(key => {
+	          	  insertSection(sectionTable, key, getTrans(key), headerCells)
+	          	  const row = sectionTable.rows[sectionTable.rows.length - 1]
+	            	  settingProps.forEach((prop, i) => addToCell(row.cells[1 + i], sections[key][prop] || '', propTxt(sections, key, prop)))
+	          	})
+	          })
+	        )
+	      )
+	    )
+	  )
+	)
+	
   baseUrl.value = document.URL.split('/').slice(0, -1).join('/')
   const settingsTable = document.querySelector('table[name="setting"]')
-  Object.keys(settings).forEach(key => insertSetting(settingsTable, settings[key]))
-  readSetting(settingsTable, 1)
+  Object.keys(settings)
+    .forEach(key => readJsonLtxSections(settings[key].fullname)
+      .then(sections => insertSetting(settingsTable, settings[key], sections))
+	)
 })
 </script>
 </head>
@@ -174,7 +172,7 @@ setTimeout(() => {
 </table>
 
 <table name="section" file="config/misc/task_manager.ltx" texts="config/text/eng/stable_task_manager.xml">
-<tr><th>Quest</th><th>reward_item</th><th>description</th><th>reward_rank</th><th>reward_relation</th></tr>
+<tr><th>Quest</th><th>reward_item</th><th>reward_money</th><th>description</th><th>text</th><th>reward_relation</th></tr>
 </table>
 
 </body>
